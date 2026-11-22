@@ -8,6 +8,11 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # --- Étape 2 : image finale ---
 FROM python:3.12-slim
 
+# Correctifs de sécurité des paquets système (ex. zlib1g)
+RUN apt-get update \
+    && apt-get install -y --only-upgrade zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --create-home appuser
 
 WORKDIR /home/appuser
