@@ -32,3 +32,37 @@ jobs:
             -t "$IMAGE:$SHA" -t "$IMAGE:latest" .
           docker push "$IMAGE:$SHA"
           docker push "$IMAGE:latest"
+
+  deploy:
+    needs: publish
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      HOST: ${{ secrets.SSH_HOST }}
+    steps:
+      - name: Préparer la clé SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Déployer sur le serveur
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:${{ github.event.workflow_run.head_sha }}"
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 "$SSH_USER@$HOST" "
+            set -e
+            docker pull $IMAGE
+            docker rm -f api || true
+            docker run -d --name api -p 80:8000 --restart unless-stopped $IMAGE
+          "
+
+      - name: Vérifier que l'API répond
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "http://$HOST/health"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
