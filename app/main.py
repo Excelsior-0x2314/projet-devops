@@ -37,3 +37,8 @@ def delete_task(task_id: int):
             tasks.remove(t)
             return
     raise HTTPException(status_code=404, detail="Task not found")
+
+
+@app.get("/")
+def root():
+    return {"message": "API DevOps déployée automatiquement"}
