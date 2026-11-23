@@ -8,14 +8,14 @@ Une petite API de gestion de tâches (FastAPI) livrée par un pipeline complet :
 ## Architecture
 
 ```mermaid
-flowchart LR
-    Dev[Développeur] -->|git push| GH[GitHub]
+graph LR
+    Dev["Développeur"] -->|"git push"| GH["GitHub"]
     GH --> CI["CI : lint, tests, build Docker, scan Trivy"]
-    CI -->|succès sur main| CD["CD : build et push de l'image"]
-    CD --> GHCR[(GHCR)]
-    CD -->|SSH + docker pull| EC2["EC2 AWS : conteneur Docker"]
-    User[Utilisateur] -->|HTTP| EC2
-```
+    CI -->|"succès sur main"| CD["CD : build et push de l'image"]
+    CD --> GHCR["GHCR : registre d'images"]
+    CD -->|"SSH puis docker pull"| EC2["EC2 AWS : conteneur Docker"]
+    User["Utilisateur"] -->|"HTTP"| EC2
+````
 
 ## Stack
 
