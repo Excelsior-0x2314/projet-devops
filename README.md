@@ -15,7 +15,7 @@ graph LR
     CD --> GHCR["GHCR : registre d'images"]
     CD -->|"SSH puis docker pull"| EC2["EC2 AWS : conteneur Docker"]
     User["Utilisateur"] -->|"HTTP"| EC2
-`````
+```
 
 ## Stack
 
