@@ -1,0 +1,50 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "SHA complet (40 caractères) du commit à redéployer"
+        required: true
+
+jobs:
+  rollback:
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      HOST: ${{ secrets.SSH_HOST }}
+      SHA: ${{ inputs.sha }}
+    steps:
+      - name: Vérifier le format du SHA
+        run: |
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "SHA invalide : il faut 40 caractères hexadécimaux"
+            exit 1
+          fi
+
+      - name: Préparer la clé SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+      - name: Redéployer la version demandée
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:$SHA"
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=15 "$SSH_USER@$HOST" "
+            set -e
+            docker pull $IMAGE
+            docker rm -f api || true
+            docker run -d --name api -p 80:8000 --restart unless-stopped $IMAGE
+          "
+
+      - name: Vérifier que l'API répond
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "http://$HOST/health"; then exit 0; fi
+            sleep 5
+          done
+          exit 1
